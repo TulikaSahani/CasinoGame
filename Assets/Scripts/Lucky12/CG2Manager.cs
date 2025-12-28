@@ -59,6 +59,7 @@ public TMP_Text dateTimeText;
     [Header("Timer thresholds (seconds)")]
     public float warningThreshold = 15f;
     public float lockThreshold = 10f;
+    private bool isManualBetMode = false;
 
     public reward reward;
     public Lucky12HistoryDisplay historyDisplay;
@@ -110,6 +111,9 @@ public TMP_Text dateTimeText;
         username();
         UpdateDateTime();
         HideAllPanels();
+        UpdateBettingMode();
+        SubscribeToSettingsEvents();
+
         StartCoroutine(InitializeWalletAndRound());
     }
     void UpdateDateTime()
@@ -126,6 +130,27 @@ public TMP_Text dateTimeText;
       
 
         usernameText.text = " " + username.ToUpper();
+    }
+    private void UpdateBettingMode()
+    {
+        if (SettingsManager.Instance != null)
+        {
+            bool autoBetSetting = SettingsManager.Instance.AutoBet;
+            isManualBetMode = !autoBetSetting;
+           // isManualBetMode = !SettingsManager.Instance.AutoBet; // Toggle OFF = Manual mode
+            Debug.Log($"Betting Mode: {(isManualBetMode ? "MANUAL" : "AUTO")}");
+           
+            Debug.Log($"=== BETTING MODE DEBUG ===");
+            Debug.Log($"SettingsManager.AutoBet = {autoBetSetting}");
+            Debug.Log($"isManualBetMode = {isManualBetMode}");
+            Debug.Log($"Expected behavior: {(isManualBetMode ? "MANUAL (click bet button)" : "AUTO (auto-submit)")}");
+            Debug.Log($"=== END DEBUG ===");
+        }
+        else
+        {
+            Debug.LogWarning("SettingsManager.Instance is null! Defaulting to auto mode.");
+            isManualBetMode = false; // Default to auto mode
+        }
     }
     void Update()
     {
@@ -160,15 +185,26 @@ public TMP_Text dateTimeText;
                 bettingOpen = false;
                 SetAllInteractive(false);
                 if (statusText != null) statusText.text = "Betting closed";
-                if (betPlacedThisRound && !spinning && !roundComplete)
+
+                if (!isManualBetMode && betPlacedThisRound && !spinning && !roundComplete)
                 {
-                    // Any final processing if needed
-                    // This ensures all multiple bets are accounted for
+                    // Auto-bet mode: proceed with existing logic
+                    Debug.Log("Auto-bet: Final betting lock");
+                }
+                else if (isManualBetMode && HasAnyBet() && !betPlacedThisRound)
+                {
+                    // Manual mode: bets placed but not submitted
+                    Debug.Log("Manual mode: Bets not submitted before lock");
+                }
+            }
+        }
+        /*if (betPlacedThisRound && !spinning && !roundComplete)
+                {
                     Debug.Log("Final betting lock - bets placed this round: " + currentTotalBetThisRound);
 
                 }
                 }
-        }
+        }*/
 
         if (game_time <= 0f && !spinning && !roundComplete)
         {
@@ -178,9 +214,141 @@ public TMP_Text dateTimeText;
                 Debug.Log("Countdown soundtrack stopped - timer reached 0");
             }
             roundComplete = true;
-            if (statusText != null) statusText.text = "Time up! Resolving...";
-            StartCoroutine(FetchResultAndSpin());
+            // if (statusText != null) statusText.text = "Time up! Resolving...";
+            // StartCoroutine(FetchResultAndSpin());
+            if (isManualBetMode && HasAnyBet() && !betPlacedThisRound)
+            {
+                if (statusText != null) statusText.text = "Time up! Bets not placed.";
+                Debug.Log("Manual mode: Time up without bet submission");
+
+                
+                ClearUnsentBetsInManualMode();
+
+                
+                StartCoroutine(FetchResultAndSpinWithoutBets());
+                return;
+            }
+            else
+            {
+                
+                if (statusText != null) statusText.text = "Time up! Resolving...";
+                StartCoroutine(FetchResultAndSpin());
+            }
         }
+    }
+
+    private void SubscribeToSettingsEvents()
+    {
+        if (SettingsManager.Instance != null)
+        {
+            SettingsManager.Instance.OnAutoBetChanged += OnAutoBetSettingChanged;
+        }
+    }
+    private void OnAutoBetSettingChanged(bool autoBetEnabled)
+    {
+        Debug.Log($"AutoBet setting changed to: {autoBetEnabled}");
+
+        // Update the mode immediately
+        isManualBetMode = !autoBetEnabled;
+
+        // Update UI to reflect the change
+        if (statusText != null && bettingOpen)
+        {
+            if (isManualBetMode)
+                statusText.text = "Betting open (Manual)";
+            else
+                statusText.text = "Betting open (Auto)";
+        }
+
+        Debug.Log($"Mode updated: {(isManualBetMode ? "MANUAL" : "AUTO")}");
+    }
+    private void ClearUnsentBetsInManualMode()
+    {
+        if (!isManualBetMode) return;
+
+        Debug.Log("Clearing unsent bets in manual mode");
+        foreach (var c in cardSpots)
+        {
+            if (c != null) c.ClearBet();
+        }
+        currentTotalBetThisRound = 0;
+        UpdateTotalUI();
+    }
+    void OnDestroy()
+    {
+        if (SettingsManager.Instance != null)
+        {
+            SettingsManager.Instance.OnAutoBetChanged -= OnAutoBetSettingChanged;
+        }
+    }
+    private IEnumerator FetchResultAndSpinWithoutBets()
+    {
+        spinning = true;
+        roundComplete = true;
+
+        // Fetch result without any bets
+        string token = PlayerPrefs.GetString("AUTH_KEY", "");
+        string url = $"{baseUrl}/v1/result/fetch-game-result-data?token={token}&game_result_id={currentGameResultId}";
+        UnityWebRequest req = UnityWebRequest.Get(url);
+        yield return req.SendWebRequest();
+
+        string resultCode = null;
+
+        if (req.result == UnityWebRequest.Result.Success)
+        {
+            try
+            {
+                var wrap = JsonUtility.FromJson<GameResultWrapper>(req.downloadHandler.text);
+                if (wrap != null && wrap.data != null && !string.IsNullOrEmpty(wrap.data.result))
+                {
+                    resultCode = wrap.data.result.Trim();
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("Exception parsing result: " + e.Message);
+            }
+        }
+
+        if (string.IsNullOrEmpty(resultCode))
+        {
+            resultCode = cardCodes[UnityEngine.Random.Range(0, cardCodes.Length)];
+        }
+
+        Debug.Log($"Result (no bets): {resultCode}");
+
+        // Just spin without winning calculation
+        if (statusText != null) statusText.text = "Spinning...";
+
+        if (WheelSpinManager.Instance != null)
+        {
+            bool spinFinished = false;
+            WheelSpinManager.Instance.SpinWithDelayedInnerStop(resultCode, () => spinFinished = true);
+            yield return new WaitUntil(() => spinFinished);
+        }
+        else
+        {
+            yield return new WaitForSeconds(4f);
+        }
+
+        if (WinCardDisplay != null)
+        {
+            WinCardDisplay.ShowWinningCard(resultCode);
+        }
+
+        if (statusText != null) statusText.text = "No bets placed this round";
+
+        if (noWinAudio != null)
+        {
+            noWinAudio.Play();
+        }
+
+        yield return new WaitForSeconds(3f);
+
+        // Start new round
+        spinning = false;
+        roundComplete = false;
+        StartCoroutine(InitializeRound());
     }
 
     #region Wallet and Initialization
@@ -371,7 +539,7 @@ public TMP_Text dateTimeText;
         {
             float fillAmount = game_time / maxGameTime;
             circularTimerFill.fillAmount = fillAmount;
-            Debug.Log($"GameTime: {game_time}, MaxTime: {maxGameTime}, Fill: {fillAmount}");
+            //Debug.Log($"GameTime: {game_time}, MaxTime: {maxGameTime}, Fill: {fillAmount}");
         }
 
         if (game_time <= lockThreshold)
@@ -403,19 +571,19 @@ public TMP_Text dateTimeText;
             return;
         }
 
-        // Deduct from wallet
+        
         currentWalletBalance -= newBetAmount;
         currentTotalBetThisRound = totalAfterThisBet;
         UpdateWalletUI();
 
-        // Don't disable betting - allow multiple bets
+       
         if (statusText != null) statusText.text = $"Bet placed! Total: {currentTotalBetThisRound}";
 
         StartCoroutine(SendBetsToApi(success =>
         {
             if (!success)
             {
-                // Refund on failure
+               
                 currentWalletBalance += newBetAmount;
                 currentTotalBetThisRound -= newBetAmount;
                 UpdateWalletUI();
@@ -424,7 +592,7 @@ public TMP_Text dateTimeText;
             else
             {
                 betPlacedThisRound = true;
-                // Clear current bets but keep betting open
+               
                 foreach (var c in cardSpots) c.ClearBet();
                 UpdateTotalUI();
             }
@@ -474,11 +642,11 @@ public TMP_Text dateTimeText;
         reqObj.game_id = gameId;
         reqObj.play_point = CalculateTotal();
 
-        // Initialize all bets to 0
+        
         reqObj.JS = reqObj.QS = reqObj.KS = reqObj.JD = reqObj.QD = reqObj.KD =
         reqObj.JC = reqObj.QC = reqObj.KC = reqObj.JH = reqObj.QH = reqObj.KH = 0;
        
-        // Assign actual bets
+     
         foreach (var c in cardSpots)
         {
             if (c == null) continue;
@@ -1045,8 +1213,10 @@ private void MinimizeWindows()
     {
         PlayButtonClickSound ();
         settingPanel.SetActive(false);
+        UpdateBettingMode();
+
     }
-    
+
     public int CalculateTotal()
     {
         int t = 0;

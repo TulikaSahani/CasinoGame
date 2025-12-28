@@ -6192,8 +6192,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.6262501, y: 0.68229187}
   m_AnchorMax: {x: 0.6262501, y: 0.9104445}
-  m_AnchoredPosition: {x: 58, y: 28.5}
-  m_SizeDelta: {x: 100, y: 11}
+  m_AnchoredPosition: {x: 55.46663, y: 14.285797}
+  m_SizeDelta: {x: 92.6646, y: -2.9194}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &77996800
 MonoBehaviour:
@@ -37731,7 +37731,7 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 0}
+      - m_Target: {fileID: 1950505372}
         m_TargetAssemblyTypeName: SettingsPanel, Assembly-CSharp
         m_MethodName: ClosePanel
         m_Mode: 1
@@ -56234,10 +56234,10 @@ MonoBehaviour:
   onValueChanged:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 0}
+      - m_Target: {fileID: 1950505372}
         m_TargetAssemblyTypeName: SettingsPanel, Assembly-CSharp
         m_MethodName: OnAutoBetChanged
-        m_Mode: 6
+        m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
           m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
@@ -77359,7 +77359,7 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 0}
+      - m_Target: {fileID: 1950505372}
         m_TargetAssemblyTypeName: SettingsPanel, Assembly-CSharp
         m_MethodName: SaveSettings
         m_Mode: 1
@@ -122687,7 +122687,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 143.3595, y: 42.1596}
+  m_SizeDelta: {x: 131.8177, y: 56.492}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1893426960
 MonoBehaviour:
@@ -126894,9 +126894,19 @@ MonoBehaviour:
   m_GameObject: {fileID: 1950505368}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: dc0a19ecb4611684b9dc7e9bed7de4a6, type: 3}
+  m_Script: {fileID: 11500000, guid: 1c768c043cda8414896ecdbc9148d479, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SettingPanel
+  m_EditorClassIdentifier: Assembly-CSharp::SettingsPanel
+  autoBetToggle: {fileID: 844612548}
+  printTicketToggle: {fileID: 0}
+  printCancelToggle: {fileID: 0}
+  printerInputField: {fileID: 0}
+  saveButton: {fileID: 1183795604}
+  closeButton: {fileID: 584435448}
+  bluetoothSearchPanel: {fileID: 0}
+  deviceListContainer: {fileID: 0}
+  deviceItemPrefab: {fileID: 0}
+  searchButton: {fileID: 0}
 --- !u!1 &1951482275
 GameObject:
   m_ObjectHideFlags: 0
